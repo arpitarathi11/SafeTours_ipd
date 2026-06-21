@@ -1,19 +1,25 @@
 """
 push_sender.py
-Sends FCM push notifications. APNs stub included for Phase 5+.
+Sends FCM push notifications via Firebase Admin SDK (HTTP v1).
+APNs stub included for Phase 5+.
 
-Requires: pip install requests
-Env var:  FCM_SERVER_KEY  (Firebase legacy HTTP v1 key)
-          For production, migrate to FCM HTTP v2 with OAuth2.
+Requires: pip install firebase-admin
+Env var:  FIREBASE_CRED_PATH  (path to serviceAccountKey.json, defaults below)
 """
 import os
 import logging
-import requests
+
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 logger = logging.getLogger(__name__)
 
-FCM_URL = "https://fcm.googleapis.com/fcm/send"
-FCM_KEY = os.getenv("FCM_SERVER_KEY", "")
+CRED_PATH = os.getenv("FIREBASE_CRED_PATH", "serviceAccountKey.json")
+
+# Initialize the Firebase app once, at import time.
+if not firebase_admin._apps:
+    cred = credentials.Certificate(CRED_PATH)
+    firebase_admin.initialize_app(cred)
 
 # Notification bodies per zone
 CHECKIN_MESSAGES = {
@@ -53,41 +59,27 @@ def send_checkin(push_token: str, platform: str, zone: str, user_id: str) -> boo
 
 
 def _send_fcm(token: str, payload: dict, user_id: str, zone: str) -> bool:
-    if not FCM_KEY:
-        logger.warning("FCM_SERVER_KEY not set — push skipped for user %s", user_id)
-        return False
-
-    body = {
-        "to": token,
-        "notification": {
-            "title": payload["title"],
-            "body": payload["body"],
-            "sound": "default",
-        },
-        "data": {
+    message = messaging.Message(
+        token=token,
+        notification=messaging.Notification(
+            title=payload["title"],
+            body=payload["body"],
+        ),
+        data={
             "type": "safety_checkin",
             "user_id": user_id,
             "zone": zone,
         },
-        "priority": "high",
-        "android": {"priority": "high"},
-    }
+        android=messaging.AndroidConfig(
+            priority="high",
+            notification=messaging.AndroidNotification(sound="default"),
+        ),
+    )
 
     try:
-        r = requests.post(
-            FCM_URL,
-            json=body,
-            headers={
-                "Authorization": f"key={FCM_KEY}",
-                "Content-Type": "application/json",
-            },
-            timeout=10,
-        )
-        if r.status_code == 200 and r.json().get("success") == 1:
-            logger.info("FCM push sent to user %s (zone=%s)", user_id, zone)
-            return True
-        logger.warning("FCM push failed for user %s: %s", user_id, r.text)
-        return False
+        response = messaging.send(message)
+        logger.info("FCM push sent to user %s (zone=%s, id=%s)", user_id, zone, response)
+        return True
     except Exception as e:
         logger.error("FCM push exception for user %s: %s", user_id, e)
         return False
