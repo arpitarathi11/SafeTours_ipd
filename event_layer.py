@@ -6,7 +6,8 @@
 import requests
 from datetime import datetime, timedelta
 
-NEWS_API_KEY = "04503749af994eb18637b7dc7f57e2a5"  # ← paste your key here
+import os
+NEWS_API_KEY = os.getenv("NEWS_API_KEY") # ← paste your key here
 NEWS_URL = "https://newsapi.org/v2/everything"
 
 # ----------------------------

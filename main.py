@@ -14,6 +14,8 @@ import os
 import time
 import threading
 from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+load_dotenv()
 from weather_layer        import get_weather_score
 from score_engine         import calculate_base_score
 from event_layer          import check_active_events

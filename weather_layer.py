@@ -4,7 +4,8 @@
 
 import requests
 
-OWM_API_KEY = "621e46957d876272d713c10378889fe9"  # ← paste your key here
+import os
+OWM_API_KEY = os.getenv("OWM_API_KEY") # ← paste your key here
 OWM_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 # ----------------------------
